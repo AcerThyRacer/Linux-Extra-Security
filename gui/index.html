@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Linux Extra Security - GUI</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-dark">
+  <div class="container">
+    <header class="header">
+      <h1>Linux Extra Security</h1>
+      <p class="subtitle">A simple, interactive privacy and security tool.</p>
+
+      <div class="theme-selector">
+        <label for="theme">Theme:</label>
+        <select id="theme">
+          <option value="theme-dark">Cyber Dark</option>
+          <option value="theme-light">Sleek Light</option>
+          <option value="theme-hacker">Terminal Hacker</option>
+          <option value="theme-neon">Neon Future (2026)</option>
+        </select>
+      </div>
+    </header>
+
+    <div class="main-content">
+      <aside class="sidebar">
+        <h3>Guided Workflows</h3>
+        <button class="cmd-btn" data-cmd="guided privacy-baseline" data-desc="Best for most desktop users who want meaningful privacy without breaking things.">Privacy Baseline</button>
+        <button class="cmd-btn" data-cmd="guided desktop-hardening" data-desc="Best for developers and power users who need a secure but functional workstation.">Desktop Hardening</button>
+        <button class="cmd-btn" data-cmd="guided vpn-friendly-lockdown" data-desc="Best for users who already run a VPN and want an extra layer of privacy on top.">VPN Friendly Lockdown</button>
+        <button class="cmd-btn" data-cmd="guided maximum-privacy" data-desc="Maximum blocking. Warning: This might break some internet things until you adjust it!">Maximum Privacy</button>
+
+        <h3>Modules</h3>
+        <button class="cmd-btn" data-cmd="telemetry apply strict" data-desc="Apply strict telemetry reduction.">Stop Telemetry (Strict)</button>
+        <button class="cmd-btn" data-cmd="ssh apply safe" data-desc="Apply safe SSH hardening.">Secure SSH (Safe)</button>
+        <button class="cmd-btn" data-cmd="usb apply strict" data-desc="Stops random USB drives from reading/writing files.">Block USB Storage</button>
+        <button class="cmd-btn" data-cmd="mac apply strict" data-desc="Changes your Wi-Fi hardware address to stop networks from tracking you.">Randomize MAC</button>
+
+        <h3>Audit & Rollback</h3>
+        <button class="cmd-btn" data-cmd="show-status" data-desc="Check current status of all modules at once.">Show Status</button>
+        <button class="cmd-btn" data-cmd="rollback interactive" data-desc="Interactive rollback menu.">Interactive Rollback</button>
+      </aside>
+
+      <section class="action-panel">
+        <div class="panel-header">
+          <h2 id="current-action">Select an Action</h2>
+          <p id="action-desc">Click a button on the left to learn more or execute it.</p>
+        </div>
+
+        <div class="controls">
+          <label>
+            <input type="checkbox" id="dry-run">
+            Dry Run (Preview changes only)
+          </label>
+          <label>
+            <input type="checkbox" id="auto-yes" checked>
+            Auto-Confirm (Yes to all)
+          </label>
+          <button id="execute-btn" class="execute-btn primary-action pulse" disabled>Execute Command</button>
+        </div>
+
+        <div class="terminal-container">
+          <div class="terminal-header">
+            <span>Terminal Output</span>
+            <button id="clear-btn" class="small-btn">Clear</button>
+          </div>
+          <pre id="terminal" class="terminal"></pre>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
