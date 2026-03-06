@@ -3,22 +3,32 @@
 
 set -euo pipefail
 
+LES_VERSION="2.0.0"
 LES_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LES_REPO_ROOT="$(cd "${LES_COMMON_DIR}/.." && pwd)"
 LES_RUNTIME_DIR="${LES_RUNTIME_DIR:-${LES_REPO_ROOT}/.runtime}"
 LES_BACKUP_ROOT="${LES_BACKUP_ROOT:-${LES_RUNTIME_DIR}/backups}"
 LES_STATE_ROOT="${LES_STATE_ROOT:-${LES_RUNTIME_DIR}/state}"
+LES_REPORT_ROOT="${LES_REPORT_ROOT:-${LES_RUNTIME_DIR}/reports}"
+LES_PROFILE_ROOT="${LES_PROFILE_ROOT:-${LES_REPO_ROOT}/profiles}"
+LES_DRY_RUN="${LES_DRY_RUN:-0}"
+LES_ASSUME_YES="${LES_ASSUME_YES:-0}"
+LES_ACTIVE_PROFILE="${LES_ACTIVE_PROFILE:-}"
 
 les_timestamp() {
   date +"%Y%m%d-%H%M%S"
 }
 
 les_ensure_runtime() {
-  mkdir -p "${LES_BACKUP_ROOT}" "${LES_STATE_ROOT}"
+  mkdir -p "${LES_BACKUP_ROOT}" "${LES_STATE_ROOT}" "${LES_REPORT_ROOT}"
 }
 
 les_info() {
   printf '[INFO] %s\n' "$*"
+}
+
+les_note() {
+  printf '[NOTE] %s\n' "$*"
 }
 
 les_warn() {
@@ -32,6 +42,18 @@ les_error() {
 les_die() {
   les_error "$*"
   exit 1
+}
+
+les_section() {
+  printf '\n## %s\n' "$*"
+}
+
+les_subsection() {
+  printf '\n### %s\n' "$*"
+}
+
+les_status_line() {
+  printf '%-24s %s\n' "$1" "$2"
 }
 
 les_command_exists() {
@@ -52,15 +74,38 @@ les_require_commands() {
 }
 
 les_require_sudo() {
+  if les_is_dry_run; then
+    return 0
+  fi
   if ! sudo -n true >/dev/null 2>&1; then
     les_info "Sudo access is required for this action."
     sudo -v
   fi
 }
 
+les_is_dry_run() {
+  [[ "${LES_DRY_RUN}" == "1" ]]
+}
+
+les_run() {
+  if les_is_dry_run; then
+    printf '[DRY-RUN] '
+    printf '%q ' "$@"
+    printf '\n'
+    return 0
+  fi
+  "$@"
+}
+
 les_confirm() {
   local prompt="${1:-Continue?}"
   local reply
+
+  if [[ "${LES_ASSUME_YES}" == "1" ]]; then
+    les_info "Auto-confirm enabled: ${prompt}"
+    return 0
+  fi
+
   read -r -p "${prompt} [y/N]: " reply
   [[ "${reply,,}" == "y" || "${reply,,}" == "yes" ]]
 }
@@ -106,10 +151,23 @@ les_detect_os() {
   if [[ -r /etc/os-release ]]; then
     # shellcheck disable=SC1091
     source /etc/os-release
-    printf '%s\n' "${ID:-unknown}:${VERSION_ID:-unknown}"
+    printf '%s:%s\n' "${ID:-unknown}" "${VERSION_ID:-unknown}"
   else
     printf 'unknown:unknown\n'
   fi
+}
+
+les_require_debian_family() {
+  local os_id
+  os_id="$(les_detect_os | cut -d: -f1)"
+  case "${os_id}" in
+    debian|ubuntu|zorin)
+      return 0
+      ;;
+    *)
+      les_die "This toolkit currently targets Debian-based systems. Detected: ${os_id}"
+      ;;
+  esac
 }
 
 les_backup_path() {
@@ -127,7 +185,7 @@ les_backup_file() {
 
   [[ -e "${path}" ]] || return 0
   destination="$(les_backup_path "${path}")"
-  sudo cp -a "${path}" "${destination}"
+  les_run sudo cp -a "${path}" "${destination}"
   les_info "Backed up ${path} to ${destination}"
 }
 
@@ -143,6 +201,14 @@ les_read_state_file() {
   [[ -r "${LES_STATE_ROOT}/${name}" ]] && cat "${LES_STATE_ROOT}/${name}"
 }
 
+les_new_manifest() {
+  local module="$1"
+  local manifest="${LES_STATE_ROOT}/${module}-$(les_timestamp).manifest"
+  les_ensure_runtime
+  : >"${manifest}"
+  printf '%s\n' "${manifest}"
+}
+
 les_append_manifest_entry() {
   local manifest="$1"
   local source_path="$2"
@@ -156,14 +222,35 @@ les_latest_manifest() {
   ls -1t "${LES_STATE_ROOT}"/"${prefix}"-*.manifest 2>/dev/null | head -n 1 || true
 }
 
+les_list_manifests() {
+  ls -1t "${LES_STATE_ROOT}"/*.manifest 2>/dev/null || true
+}
+
 les_record_manifest_copy() {
   local manifest="$1"
   local source_path="$2"
   local backup_path
 
   backup_path="$(les_backup_path "${source_path}")"
-  sudo cp -a "${source_path}" "${backup_path}"
+  les_run sudo cp -a "${source_path}" "${backup_path}"
   les_append_manifest_entry "${manifest}" "${source_path}" "${backup_path}"
+}
+
+les_profile_path() {
+  local profile_name="$1"
+  printf '%s/%s.env\n' "${LES_PROFILE_ROOT}" "${profile_name}"
+}
+
+les_load_profile() {
+  local profile_name="$1"
+  local profile_path
+
+  profile_path="$(les_profile_path "${profile_name}")"
+  [[ -r "${profile_path}" ]] || les_die "Profile not found: ${profile_name}"
+
+  LES_ACTIVE_PROFILE="${profile_name}"
+  # shellcheck disable=SC1090
+  source "${profile_path}"
 }
 
 les_detect_vpn() {
@@ -172,6 +259,36 @@ les_detect_vpn() {
   fi
 }
 
-les_status_line() {
-  printf '%-22s %s\n' "$1" "$2"
+les_service_state() {
+  local service_name="$1"
+  if systemctl is-active --quiet "${service_name}" 2>/dev/null; then
+    printf 'active\n'
+  elif systemctl list-unit-files 2>/dev/null | grep -q "^${service_name}\.service"; then
+    printf 'inactive\n'
+  else
+    printf 'not-installed\n'
+  fi
+}
+
+les_write_report() {
+  local report_name="$1"
+  shift
+  les_ensure_runtime
+  printf '%s\n' "$*" >"${LES_REPORT_ROOT}/${report_name}"
+  printf '%s\n' "${LES_REPORT_ROOT}/${report_name}"
+}
+
+les_write_root_file() {
+  local target_path="$1"
+  local content="$2"
+
+  if les_is_dry_run; then
+    les_info "Would write ${target_path}"
+    printf '%s\n' "${content}"
+    return 0
+  fi
+
+  les_require_sudo
+  sudo mkdir -p "$(dirname "${target_path}")"
+  printf '%s\n' "${content}" | sudo tee "${target_path}" >/dev/null
 }

@@ -1,100 +1,133 @@
 # Linux Extra Security
 
-Interactive shell toolkit for Debian, Ubuntu, and Zorin systems that helps configure:
+`Linux Extra Security` is a shell-only privacy and hardening toolkit for Debian-family systems. V2 adds a guided launcher for beginners, reusable profiles for repeatable setups, broader host hardening, richer verification, and stronger rollback/reporting.
 
-- privacy DNS with provider selection
-- Portmaster privacy presets
-- UFW outbound lockdown profiles
-- verification checks and rollback manifests
+The repository is public-safe by design. It does **not** ship real NextDNS profile IDs, local hostnames, private IPs, or runtime backups.
 
-The project is designed for public use. It does **not** ship real profile IDs, local IPs, hostnames, or machine backups.
+## What V2 Adds
 
-## Features
-
-- Interactive entrypoint: `bin/linux-extra-security`
-- Multi-provider DNS workflow:
-  - NextDNS via `nextdns` CLI
-  - Quad9, AdGuard, and Cloudflare via `systemd-resolved` DNS-over-TLS
-  - custom `systemd-resolved` values
-- Portmaster presets with compatibility logic for localhost DNS forwarders
-- Staged UFW profiles:
-  - `balanced`
+- Guided workflows:
+  - `privacy-baseline`
+  - `desktop-hardening`
+  - `vpn-friendly-lockdown`
+  - `maximum-privacy`
+- Reusable profiles:
+  - `balanced-desktop`
+  - `privacy-max`
   - `vpn-friendly`
-  - `strict`
-- Runtime backups and rollback manifests stored in `.runtime/`
-- Smoke tests that check shell syntax and secret scrubbing
+  - `workstation-safe`
+- Expanded modules:
+  - DNS
+  - Portmaster
+  - UFW firewalling
+  - telemetry reduction
+  - SSH hardening
+  - unattended updates
+  - AppArmor
+  - fail2ban
+  - service pruning
+  - journald privacy controls
+  - sysctl hardening
+  - browser resolver alignment
+- Reporting:
+  - human-readable verification output
+  - JSON verification reports
+  - posture audit output
+  - network path reporting
+- Recovery:
+  - per-module rollback manifests
+  - rollback listing and preview
+  - targeted rollback by module
 
 ## Quick Start
 
 ```bash
 git clone https://github.com/AcerThyRacer/Linux-Extra-Security.git
 cd Linux-Extra-Security
-chmod +x bin/linux-extra-security tests/smoke-test.sh
+chmod +x bin/linux-extra-security tests/*.sh
 ./bin/linux-extra-security
 ```
 
-If you want a direct action:
+Default launch opens the guided flow. For a repeatable non-interactive-ish path, preview a profile first:
 
 ```bash
-./bin/linux-extra-security configure-dns
-./bin/linux-extra-security configure-portmaster
-./bin/linux-extra-security configure-ufw
-./bin/linux-extra-security verify
+./bin/linux-extra-security profile plan balanced-desktop
+./bin/linux-extra-security profile apply balanced-desktop
 ```
 
-## Supported Distros
+## Common Commands
+
+```bash
+./bin/linux-extra-security guided maximum-privacy
+./bin/linux-extra-security dns status
+./bin/linux-extra-security firewall plan locked-down
+./bin/linux-extra-security verify all
+./bin/linux-extra-security rollback list
+./bin/linux-extra-security --dry-run --yes profile apply workstation-safe
+```
+
+## Package Groups
+
+```bash
+./bin/linux-extra-security install-tools base
+./bin/linux-extra-security install-tools host-hardening
+./bin/linux-extra-security install-tools all
+```
+
+## Supported Systems
 
 - Debian
 - Ubuntu
 - Zorin OS
 
-The toolkit assumes `systemd-resolved` and `apt` are available for the DNS and package management flows.
+Assumptions:
+
+- `apt` is the package manager
+- `systemd` is present
+- `systemd-resolved` is available for DoT-based DNS flows
+- `Portmaster` is optional, but supported when installed
 
 ## Safety Model
 
-- Every destructive step asks for confirmation.
-- Backups are recorded before writing `NextDNS`, `Portmaster`, or `UFW` state.
-- `UFW` profiles are deny-by-default, so read the prompts carefully.
-- Direct domain blocking belongs at the DNS layer, not in `UFW`.
+- Every apply flow shows a plan first.
+- Machine changes are recorded into `.runtime/state/*.manifest`.
+- Backups are copied into `.runtime/backups/` before file writes.
+- `--dry-run` prints intended commands without changing the machine.
+- `--yes` auto-confirms prompts for automation.
+- DNS/domain-scale blocking stays at the resolver and Portmaster layers rather than trying to force that into `UFW`.
 
-## Runtime State
+## Runtime Data
 
-Generated backups and manifests go to:
+All local state stays in the gitignored `.runtime/` directory:
 
 ```text
 .runtime/
+  backups/
+  reports/
+  state/
 ```
 
-That folder is gitignored and intended for local-only state.
+## Documentation
 
-## Provider Notes
-
-- `NextDNS`: prompts for your profile ID at runtime and never stores it in git.
-- `Quad9`, `AdGuard`, `Cloudflare`: configured through `systemd-resolved` using DNS-over-TLS.
-- `Portmaster`: if a localhost `NextDNS` listener is detected, the toolkit automatically prefers a compatible mode instead of forcing bypass prevention.
+- [`docs/architecture.md`](docs/architecture.md)
+- [`docs/guided-flows.md`](docs/guided-flows.md)
+- [`docs/profiles.md`](docs/profiles.md)
+- [`docs/debian-compatibility.md`](docs/debian-compatibility.md)
+- [`docs/module-reference.md`](docs/module-reference.md)
+- [`docs/providers.md`](docs/providers.md)
+- [`docs/reporting.md`](docs/reporting.md)
+- [`docs/rollback.md`](docs/rollback.md)
+- [`docs/troubleshooting.md`](docs/troubleshooting.md)
+- [`docs/examples/`](docs/examples)
 
 ## Verification
 
-Run:
-
 ```bash
-./bin/linux-extra-security verify
+./bin/linux-extra-security verify all
 ./tests/smoke-test.sh
+./tests/profile-test.sh
+./tests/dry-run-test.sh
 ```
-
-The verification flow checks:
-
-- web reachability
-- direct DNS bypass attempts
-- NextDNS status when configured
-- malware test resolution
-- backup presence
-
-## Docs
-
-- [`docs/architecture.md`](docs/architecture.md)
-- [`docs/providers.md`](docs/providers.md)
-- [`docs/rollback.md`](docs/rollback.md)
 
 ## License
 

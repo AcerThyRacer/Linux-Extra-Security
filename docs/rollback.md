@@ -19,14 +19,42 @@ Depending on the module you use, the toolkit may capture:
 - `/etc/systemd/resolved.conf.d/99-linux-extra-security.conf`
 - `/var/lib/portmaster/config.json`
 - `/etc/ufw`
+- `/etc/default/apport`
+- `/etc/default/popularity-contest`
+- `/etc/ssh/sshd_config.d/99-linux-extra-security.conf`
+- `/etc/apt/apt.conf.d/20auto-upgrades`
+- `/etc/fail2ban/jail.d/99-linux-extra-security.conf`
+- `/etc/systemd/journald.conf.d/99-linux-extra-security.conf`
+- `/etc/sysctl.d/99-linux-extra-security.conf`
+- `/etc/firefox/policies/policies.json`
 
-## Restore the Latest Manifest
+## Show Rollback Points
 
 ```bash
-./bin/linux-extra-security rollback
+./bin/linux-extra-security rollback list
 ```
 
-The rollback flow restores the files recorded in the latest manifest. At the moment the built-in interactive rollback is focused on the most recent UFW manifest, because firewall mistakes are the most likely to break connectivity.
+## Restore Interactively
+
+```bash
+./bin/linux-extra-security rollback interactive
+```
+
+The guided rollback flow shows a preview before restoring files.
+
+## Restore a Specific Module
+
+```bash
+./bin/linux-extra-security rollback module dns
+./bin/linux-extra-security rollback module ufw
+./bin/linux-extra-security rollback module portmaster
+```
+
+## Dry-Run Preview
+
+```bash
+./bin/linux-extra-security --dry-run rollback module dns
+```
 
 ## Manual Recovery Tips
 

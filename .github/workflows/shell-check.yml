@@ -9,7 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run smoke test
+      - name: Run shell toolkit checks
         run: |
-          chmod +x bin/linux-extra-security tests/smoke-test.sh
+          chmod +x bin/linux-extra-security tests/*.sh
           ./tests/smoke-test.sh
+          ./tests/profile-test.sh
+          ./tests/dry-run-test.sh

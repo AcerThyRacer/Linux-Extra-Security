@@ -8,12 +8,36 @@ REPO_ROOT="$(cd "${BIN_DIR}/.." && pwd)"
 
 # shellcheck source=../lib/common.sh
 source "${REPO_ROOT}/lib/common.sh"
+# shellcheck source=../lib/package-install.sh
+source "${REPO_ROOT}/lib/package-install.sh"
 # shellcheck source=../lib/dns.sh
 source "${REPO_ROOT}/lib/dns.sh"
 # shellcheck source=../lib/portmaster.sh
 source "${REPO_ROOT}/lib/portmaster.sh"
 # shellcheck source=../lib/ufw.sh
 source "${REPO_ROOT}/lib/ufw.sh"
+# shellcheck source=../lib/system-audit.sh
+source "${REPO_ROOT}/lib/system-audit.sh"
+# shellcheck source=../lib/network-report.sh
+source "${REPO_ROOT}/lib/network-report.sh"
+# shellcheck source=../lib/telemetry.sh
+source "${REPO_ROOT}/lib/telemetry.sh"
+# shellcheck source=../lib/ssh.sh
+source "${REPO_ROOT}/lib/ssh.sh"
+# shellcheck source=../lib/updates.sh
+source "${REPO_ROOT}/lib/updates.sh"
+# shellcheck source=../lib/apparmor.sh
+source "${REPO_ROOT}/lib/apparmor.sh"
+# shellcheck source=../lib/fail2ban.sh
+source "${REPO_ROOT}/lib/fail2ban.sh"
+# shellcheck source=../lib/services.sh
+source "${REPO_ROOT}/lib/services.sh"
+# shellcheck source=../lib/journald.sh
+source "${REPO_ROOT}/lib/journald.sh"
+# shellcheck source=../lib/sysctl.sh
+source "${REPO_ROOT}/lib/sysctl.sh"
+# shellcheck source=../lib/browser.sh
+source "${REPO_ROOT}/lib/browser.sh"
 # shellcheck source=../lib/verify.sh
 source "${REPO_ROOT}/lib/verify.sh"
 # shellcheck source=../lib/rollback.sh
@@ -21,40 +45,154 @@ source "${REPO_ROOT}/lib/rollback.sh"
 
 les_usage() {
   cat <<'EOF'
-Usage: linux-extra-security <command>
+Usage: linux-extra-security [--dry-run] [--yes] <command> [args]
 
 Commands:
-  install-tools         Install supported packages and prerequisites
-  configure-dns         Configure privacy DNS interactively
-  configure-portmaster  Configure Portmaster privacy presets
-  configure-ufw         Configure UFW presets
-  verify                Run non-destructive verification checks
-  rollback              Restore files from the latest recorded backup manifest
-  show-status           Show current DNS, Portmaster, and firewall status
-  sanity-check          Validate repository safety for public release
-  help                  Show this help
+  guided <workflow>         Run a guided workflow
+  profile plan <name>       Preview a reusable profile
+  profile apply <name>      Apply a reusable profile
+  dns <action>              DNS plan/apply/status/verify
+  portmaster <action>       Portmaster plan/apply/status/export
+  firewall <action>         UFW plan/apply/status/verify
+  telemetry <action>        Telemetry reduction plan/apply/status
+  ssh <action>              SSH hardening plan/apply/status
+  updates <action>          Update posture plan/apply/status
+  apparmor <action>         AppArmor plan/apply/status
+  fail2ban <action>         Fail2ban plan/apply/status
+  services <action>         Service hardening plan/apply/status
+  journald <action>         Journald privacy plan/apply/status
+  sysctl <action>           Sysctl hardening plan/apply/status
+  browser <action>          Browser alignment plan/apply/status
+  audit                     Show system audit and posture report
+  verify [all|json]         Run verification and write reports
+  rollback <action>         List or restore rollback points
+  install-tools [group]     Install package groups
+  show-status               Show current module status
+  sanity-check              Validate repository safety for public release
+  help                      Show this help
 EOF
 }
 
-les_interactive_menu() {
+les_guided_menu() {
   local action
-  action="$(les_choose_from_menu "Linux Extra Security" \
-    "install-tools" \
-    "configure-dns" \
-    "configure-portmaster" \
-    "configure-ufw" \
-    "verify" \
-    "rollback" \
-    "show-status" \
-    "sanity-check")"
+  action="$(les_choose_from_menu "Linux Extra Security guided workflows" \
+    "privacy-baseline" \
+    "desktop-hardening" \
+    "vpn-friendly-lockdown" \
+    "maximum-privacy" \
+    "rollback")"
   printf '%s\n' "${action}"
 }
 
+les_profile_name_for_workflow() {
+  case "$1" in
+    privacy-baseline)
+      printf 'balanced-desktop\n'
+      ;;
+    desktop-hardening)
+      printf 'workstation-safe\n'
+      ;;
+    vpn-friendly-lockdown)
+      printf 'vpn-friendly\n'
+      ;;
+    maximum-privacy)
+      printf 'privacy-max\n'
+      ;;
+    *)
+      les_die "Unknown guided workflow: $1"
+      ;;
+  esac
+}
+
+les_plan_profile() {
+  local profile_name="$1"
+  les_load_profile "${profile_name}"
+
+  les_section "Profile Summary"
+  les_status_line "Name" "${PROFILE_NAME}"
+  les_status_line "Description" "${PROFILE_DESCRIPTION}"
+  les_status_line "DNS" "${DNS_PROVIDER}"
+  les_status_line "Portmaster" "${PORTMASTER_PRESET}"
+  les_status_line "UFW" "${UFW_PROFILE}"
+  les_status_line "Telemetry" "${TELEMETRY_LEVEL}"
+  les_status_line "Updates" "${UPDATES_MODE}"
+  les_status_line "AppArmor" "${APPARMOR_MODE}"
+  les_status_line "Fail2ban" "${FAIL2BAN_MODE}"
+  les_status_line "Services" "${SERVICES_PROFILE}"
+  les_status_line "Journald" "${JOURNALD_PROFILE}"
+  les_status_line "Sysctl" "${SYSCTL_PROFILE}"
+  les_status_line "Browser" "${BROWSER_PROFILE}"
+
+  les_dns_plan "${DNS_PROVIDER}" "${NEXTDNS_MODE:-${DNS_MODE}}" "${NEXTDNS_LISTEN_PORT:-5354}"
+  les_portmaster_plan "${PORTMASTER_PRESET}"
+  les_ufw_plan "${UFW_PROFILE}"
+  les_telemetry_plan "${TELEMETRY_LEVEL}"
+  les_ssh_plan "${SSH_HARDEN_MODE}"
+  les_updates_plan "${UPDATES_MODE}"
+  les_apparmor_plan "${APPARMOR_MODE}"
+  les_fail2ban_plan "${FAIL2BAN_MODE}"
+  les_services_plan "${SERVICES_PROFILE}"
+  les_journald_plan "${JOURNALD_PROFILE}"
+  les_sysctl_plan "${SYSCTL_PROFILE}"
+  les_browser_plan "${BROWSER_PROFILE}"
+}
+
+les_apply_profile() {
+  local profile_name="$1"
+  local nextdns_profile_id="${2:-}"
+
+  les_load_profile "${profile_name}"
+  les_plan_profile "${profile_name}"
+  les_confirm "Apply profile ${profile_name}?" || return 1
+
+  if [[ "${DNS_PROVIDER}" == "NextDNS" && -z "${nextdns_profile_id}" ]]; then
+    nextdns_profile_id="$(les_prompt "Enter your NextDNS profile ID")"
+  fi
+
+  if [[ "${DNS_PROVIDER}" == "NextDNS" ]]; then
+    les_dns_apply "${DNS_PROVIDER}" "${nextdns_profile_id}" "${NEXTDNS_MODE:-local-forwarder}" "${NEXTDNS_LISTEN_PORT:-5354}"
+  else
+    les_dns_apply "${DNS_PROVIDER}"
+  fi
+  les_portmaster_apply "${PORTMASTER_PRESET}"
+  les_ufw_apply_profile "${UFW_PROFILE}"
+  les_telemetry_apply "${TELEMETRY_LEVEL}"
+  les_ssh_apply "${SSH_HARDEN_MODE}"
+  les_updates_apply "${UPDATES_MODE}"
+  les_apparmor_apply "${APPARMOR_MODE}"
+  les_fail2ban_apply "${FAIL2BAN_MODE}"
+  les_services_apply "${SERVICES_PROFILE}"
+  les_journald_apply "${JOURNALD_PROFILE}"
+  les_sysctl_apply "${SYSCTL_PROFILE}"
+  les_browser_apply "${BROWSER_PROFILE}"
+  if les_is_dry_run; then
+    les_info "Dry-run mode: skipping live verification checks."
+  else
+    les_verify_all
+  fi
+}
+
 les_install_tools() {
-  les_require_sudo
-  les_info "Installing recommended packages for Debian/Ubuntu/Zorin."
-  sudo apt-get update
-  sudo apt-get install -y curl ca-certificates jq dnsutils ufw
+  local group="${1:-all}"
+  case "${group}" in
+    base)
+      les_pkg_install_group base
+      ;;
+    host-hardening)
+      les_pkg_install_group host-hardening
+      ;;
+    audit)
+      les_pkg_install_group audit
+      ;;
+    all)
+      les_pkg_install_group base
+      les_pkg_install_group host-hardening
+      les_pkg_install_group audit
+      ;;
+    *)
+      les_die "Unknown package group: ${group}"
+      ;;
+  esac
 }
 
 les_show_status() {
@@ -62,6 +200,15 @@ les_show_status() {
   les_dns_show_status
   les_portmaster_show_status
   les_ufw_show_status
+  les_telemetry_status
+  les_ssh_status
+  les_updates_status
+  les_apparmor_status
+  les_fail2ban_status
+  les_services_status
+  les_journald_status
+  les_sysctl_status
+  les_browser_status
 }
 
 les_sanity_check() {
@@ -69,29 +216,245 @@ les_sanity_check() {
 }
 
 main() {
-  local command="${1:-}"
+  local command subcommand value workflow profile_name
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dry-run)
+        LES_DRY_RUN=1
+        shift
+        ;;
+      --yes)
+        LES_ASSUME_YES=1
+        shift
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  command="${1:-}"
   if [[ -z "${command}" ]]; then
-    command="$(les_interactive_menu)"
+    workflow="$(les_guided_menu)"
+    if [[ "${workflow}" == "rollback" ]]; then
+      les_rollback_interactive
+      return 0
+    fi
+    les_apply_profile "$(les_profile_name_for_workflow "${workflow}")"
+    return 0
   fi
 
   case "${command}" in
     install-tools)
-      les_install_tools
+      les_install_tools "${2:-all}"
       ;;
-    configure-dns)
-      les_dns_configure_interactive
+    guided)
+      workflow="${2:-}"
+      [[ -n "${workflow}" ]] || les_die "Usage: linux-extra-security guided <workflow>"
+      if [[ "${workflow}" == "rollback" ]]; then
+        les_rollback_interactive
+      else
+        les_apply_profile "$(les_profile_name_for_workflow "${workflow}")"
+      fi
       ;;
-    configure-portmaster)
-      les_portmaster_configure_interactive
+    profile)
+      subcommand="${2:-}"
+      profile_name="${3:-}"
+      [[ -n "${subcommand}" && -n "${profile_name}" ]] || les_die "Usage: linux-extra-security profile <plan|apply> <name>"
+      case "${subcommand}" in
+        plan)
+          les_plan_profile "${profile_name}"
+          ;;
+        apply)
+          les_apply_profile "${profile_name}"
+          ;;
+        *)
+          les_die "Unknown profile action: ${subcommand}"
+          ;;
+      esac
       ;;
-    configure-ufw)
-      les_ufw_configure_interactive
+    dns)
+      subcommand="${2:-configure}"
+      case "${subcommand}" in
+        configure|apply)
+          les_dns_configure_interactive
+          ;;
+        plan-profile)
+          les_load_profile "${3:-}"
+          les_dns_plan "${DNS_PROVIDER}" "${NEXTDNS_MODE:-${DNS_MODE}}" "${NEXTDNS_LISTEN_PORT:-5354}"
+          ;;
+        status)
+          les_dns_show_status
+          ;;
+        verify)
+          les_dns_verify
+          ;;
+        *)
+          les_die "Unknown dns action: ${subcommand}"
+          ;;
+      esac
+      ;;
+    portmaster)
+      subcommand="${2:-configure}"
+      case "${subcommand}" in
+        configure|apply)
+          les_portmaster_configure_interactive
+          ;;
+        plan-profile)
+          les_load_profile "${3:-}"
+          les_portmaster_plan "${PORTMASTER_PRESET}"
+          ;;
+        status)
+          les_portmaster_show_status
+          ;;
+        export)
+          les_portmaster_export_config
+          ;;
+        *)
+          les_die "Unknown portmaster action: ${subcommand}"
+          ;;
+      esac
+      ;;
+    firewall|ufw)
+      subcommand="${2:-configure}"
+      case "${subcommand}" in
+        configure|apply)
+          if [[ -n "${3:-}" ]]; then
+            les_ufw_plan "${3}"
+            les_ufw_apply_profile "${3}"
+          else
+            les_ufw_configure_interactive
+          fi
+          ;;
+        plan)
+          les_ufw_plan "${3:-desktop-safe}"
+          ;;
+        status)
+          les_ufw_show_status
+          ;;
+        verify)
+          les_ufw_verify
+          ;;
+        *)
+          les_die "Unknown firewall action: ${subcommand}"
+          ;;
+      esac
+      ;;
+    telemetry)
+      subcommand="${2:-status}"
+      value="${3:-balanced}"
+      case "${subcommand}" in
+        plan) les_telemetry_plan "${value}" ;;
+        apply) les_telemetry_apply "${value}" ;;
+        status) les_telemetry_status ;;
+        *) les_die "Unknown telemetry action: ${subcommand}" ;;
+      esac
+      ;;
+    ssh)
+      subcommand="${2:-status}"
+      value="${3:-safe}"
+      case "${subcommand}" in
+        plan) les_ssh_plan "${value}" ;;
+        apply) les_ssh_apply "${value}" ;;
+        status) les_ssh_status ;;
+        *) les_die "Unknown ssh action: ${subcommand}" ;;
+      esac
+      ;;
+    updates)
+      subcommand="${2:-status}"
+      value="${3:-security-auto}"
+      case "${subcommand}" in
+        plan) les_updates_plan "${value}" ;;
+        apply) les_updates_apply "${value}" ;;
+        status) les_updates_status ;;
+        *) les_die "Unknown updates action: ${subcommand}" ;;
+      esac
+      ;;
+    apparmor)
+      subcommand="${2:-status}"
+      value="${3:-on}"
+      case "${subcommand}" in
+        plan) les_apparmor_plan "${value}" ;;
+        apply) les_apparmor_apply "${value}" ;;
+        status) les_apparmor_status ;;
+        *) les_die "Unknown apparmor action: ${subcommand}" ;;
+      esac
+      ;;
+    fail2ban)
+      subcommand="${2:-status}"
+      value="${3:-optional}"
+      case "${subcommand}" in
+        plan) les_fail2ban_plan "${value}" ;;
+        apply) les_fail2ban_apply "${value}" ;;
+        status) les_fail2ban_status ;;
+        *) les_die "Unknown fail2ban action: ${subcommand}" ;;
+      esac
+      ;;
+    services)
+      subcommand="${2:-status}"
+      value="${3:-balanced}"
+      case "${subcommand}" in
+        plan) les_services_plan "${value}" ;;
+        apply) les_services_apply "${value}" ;;
+        status) les_services_status ;;
+        *) les_die "Unknown services action: ${subcommand}" ;;
+      esac
+      ;;
+    journald)
+      subcommand="${2:-status}"
+      value="${3:-balanced}"
+      case "${subcommand}" in
+        plan) les_journald_plan "${value}" ;;
+        apply) les_journald_apply "${value}" ;;
+        status) les_journald_status ;;
+        *) les_die "Unknown journald action: ${subcommand}" ;;
+      esac
+      ;;
+    sysctl)
+      subcommand="${2:-status}"
+      value="${3:-desktop-safe}"
+      case "${subcommand}" in
+        plan) les_sysctl_plan "${value}" ;;
+        apply) les_sysctl_apply "${value}" ;;
+        status) les_sysctl_status ;;
+        *) les_die "Unknown sysctl action: ${subcommand}" ;;
+      esac
+      ;;
+    browser)
+      subcommand="${2:-status}"
+      value="${3:-privacy-baseline}"
+      case "${subcommand}" in
+        plan) les_browser_plan "${value}" ;;
+        apply) les_browser_apply "${value}" ;;
+        status) les_browser_status ;;
+        *) les_die "Unknown browser action: ${subcommand}" ;;
+      esac
+      ;;
+    audit)
+      les_system_audit_report
+      les_network_report_human
       ;;
     verify)
-      les_verify_all
+      case "${2:-all}" in
+        all) les_verify_all ;;
+        json) les_verify_json_report ;;
+        *) les_die "Unknown verify action: ${2:-}" ;;
+      esac
       ;;
     rollback)
-      les_rollback_interactive
+      subcommand="${2:-interactive}"
+      case "${subcommand}" in
+        interactive) les_rollback_interactive ;;
+        list) les_rollback_list_points ;;
+        module)
+          [[ -n "${3:-}" ]] || les_die "Usage: linux-extra-security rollback module <name>"
+          les_rollback_restore_module "${3}"
+          ;;
+        *)
+          les_die "Unknown rollback action: ${subcommand}"
+          ;;
+      esac
       ;;
     show-status)
       les_show_status

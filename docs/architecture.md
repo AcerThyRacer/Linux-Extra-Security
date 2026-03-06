@@ -2,50 +2,91 @@
 
 ## Goals
 
-The toolkit separates DNS, Portmaster, firewalling, verification, and rollback into small shell modules so public users can apply only the layers they want.
+V2 turns the toolkit into a shell-only platform with two entry styles:
+
+- guided workflows for beginners
+- direct module commands for power users
 
 ## High-Level Flow
 
 ```mermaid
 flowchart LR
-entry[interactiveEntryPoint] --> detect[detectSystemState]
-detect --> dns[dnsModule]
-detect --> pm[portmasterModule]
-detect --> ufw[ufwModule]
-dns --> verify[verificationModule]
+entry[guidedLauncher] --> profiles[profileLayer]
+entry --> modules[moduleCommands]
+profiles --> dns[dns]
+profiles --> pm[portmaster]
+profiles --> fw[ufw]
+profiles --> host[hostHardening]
+host --> verify[verification]
+dns --> verify
 pm --> verify
-ufw --> verify
-verify --> rollback[rollbackModule]
+fw --> verify
+verify --> reports[reports]
+verify --> rollback[rollback]
 ```
 
 ## Design Rules
 
 - Never commit live machine configs.
 - Prompt for provider-specific secrets such as a NextDNS profile ID at runtime.
-- Record local backups before changing `DNS`, `Portmaster`, or `UFW`.
+- Record local backups before changing managed files.
 - Prefer compatible configurations over maximal blocking when two tools would conflict.
+- Keep flows Debian-family friendly and shell-only.
+- Make every profile reusable through the same module functions used by guided mode.
 
-## DNS Layer
+## Entry Layer
 
-There are two supported patterns:
+`bin/linux-extra-security` handles:
 
-1. `systemd-resolved` with DNS-over-TLS for providers like Quad9, AdGuard, and Cloudflare.
-2. `NextDNS` CLI for encrypted DNS-over-HTTPS with a user-supplied profile ID.
+- global flags such as `--dry-run` and `--yes`
+- guided workflows like `maximum-privacy`
+- direct subcommands like `dns status` and `rollback list`
+- profile planning and applying
 
-## Portmaster Layer
+## Profile Layer
 
-Portmaster is treated as a privacy and connection-policy layer, not as the only DNS authority in every setup.
+Profiles live in `profiles/*.env` and declare:
 
-The toolkit specifically avoids blindly enabling `preventBypassing` when it detects a localhost encrypted DNS client, because that architecture can break.
+- DNS provider and mode
+- Portmaster preset
+- UFW profile
+- telemetry, SSH, updates, AppArmor, fail2ban, services, journald, sysctl, and browser posture values
 
-## Firewall Layer
+Guided mode and direct `profile apply` both route through the same module implementations.
 
-`UFW` is used for IP and port policy only.
+## Network Modules
 
-- Default profile posture: `deny outgoing`
-- Core DNS bypass guard: deny outbound `53` and `853`
-- Domain-scale blocking is intentionally left to DNS providers and Portmaster lists
+### DNS
+
+Supported patterns:
+
+1. `systemd-resolved` with DNS-over-TLS for Quad9, AdGuard, and Cloudflare
+2. `nextdns` CLI in `system-stub` or `local-forwarder` mode
+3. custom `systemd-resolved` values for advanced users
+
+### Portmaster
+
+Portmaster is treated as a privacy policy layer, not as an always-authoritative DNS owner.
+
+The toolkit avoids forcing `preventBypassing` when it detects:
+
+- a localhost NextDNS forwarder
+- an active VPN that may already own DNS routing
+
+### Firewall
+
+`UFW` stays the firewall abstraction.
+
+- default posture: deny incoming plus deny outgoing
+- loopback is always preserved
+- DNS bypass protection is handled with outbound `53` and `853` policy where appropriate
+- domain blocking remains the job of DNS providers and Portmaster lists
 
 ## Rollback Model
 
-Each module can write a local manifest in `.runtime/state/` describing the files it backed up. Rollback restores those files directly from the manifest.
+Each module writes its own local manifest in `.runtime/state/` when it changes files. Rollback can:
+
+- list rollback points
+- preview a manifest
+- restore the latest manifest for a specific module
+- restore the latest manifest overall through guided mode

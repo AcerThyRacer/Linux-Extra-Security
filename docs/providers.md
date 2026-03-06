@@ -6,7 +6,8 @@ Use `NextDNS` when you want:
 
 - DNS-over-HTTPS
 - profile-based filtering
-- provider-side analytics and denylist support
+- provider-side allow/block controls
+- very large domain-scale blocking without forcing that logic into `UFW`
 
 The toolkit prompts for your profile ID at runtime and never stores a real one in the repository.
 
@@ -42,3 +43,7 @@ Custom mode writes your supplied `systemd-resolved` `DNS=` values and a chosen `
 ## Portmaster Compatibility Note
 
 If Portmaster detects a localhost NextDNS forwarder, the toolkit defaults to a compatibility mode and avoids forcing DNS bypass prevention. This keeps encrypted DNS working instead of breaking the chain.
+
+## Browser Compatibility Note
+
+Browsers can bypass the OS resolver if Secure DNS or DNS-over-HTTPS is enabled internally. The toolkit documents this in reporting output and can install a managed Firefox policy to keep Firefox aligned with the system resolver.
