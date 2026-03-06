@@ -17,6 +17,15 @@ les_journald_plan() {
 
 les_journald_content() {
   case "${1:-balanced}" in
+    lite)
+      cat <<'EOF'
+[Journal]
+Compress=yes
+Storage=auto
+SystemMaxUse=500M
+MaxRetentionSec=1month
+EOF
+      ;;
     balanced)
       cat <<'EOF'
 [Journal]
@@ -45,7 +54,18 @@ EOF
 }
 
 les_journald_apply() {
-  local profile="${1:-balanced}"
+  local profile="${1:-}"
+
+  if [[ -z "${profile}" ]]; then
+    profile="$(les_choose_from_menu "Select Journald Profile:" \
+      "lite" \
+      "balanced" \
+      "private")"
+  fi
+
+  les_journald_plan "${profile}"
+  les_confirm "Apply journald profile?" || return 0
+
   local manifest
 
   manifest="$(les_new_manifest journald)"

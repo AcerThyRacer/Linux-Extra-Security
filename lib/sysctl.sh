@@ -17,6 +17,11 @@ les_sysctl_plan() {
 
 les_sysctl_content() {
   case "${1:-desktop-safe}" in
+    lite)
+      cat <<'EOF'
+net.ipv4.tcp_syncookies = 1
+EOF
+      ;;
     desktop-safe)
       cat <<'EOF'
 kernel.kptr_restrict = 2
@@ -49,7 +54,18 @@ EOF
 }
 
 les_sysctl_apply() {
-  local profile="${1:-desktop-safe}"
+  local profile="${1:-}"
+
+  if [[ -z "${profile}" ]]; then
+    profile="$(les_choose_from_menu "Select Sysctl Profile:" \
+      "lite" \
+      "desktop-safe" \
+      "hardened")"
+  fi
+
+  les_sysctl_plan "${profile}"
+  les_confirm "Apply sysctl profile?" || return 0
+
   local manifest
 
   manifest="$(les_new_manifest sysctl)"

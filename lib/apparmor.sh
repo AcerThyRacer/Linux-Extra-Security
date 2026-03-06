@@ -16,7 +16,16 @@ les_apparmor_plan() {
 }
 
 les_apparmor_apply() {
-  local mode="${1:-on}"
+  local mode="${1:-}"
+
+  if [[ -z "${mode}" ]]; then
+    mode="$(les_choose_from_menu "Select AppArmor Mode:" \
+      "on" \
+      "strict")"
+  fi
+
+  les_apparmor_plan "${mode}"
+  les_confirm "Apply AppArmor mode?" || return 0
 
   case "${mode}" in
     on|strict) ;;
