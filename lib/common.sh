@@ -263,7 +263,7 @@ les_service_state() {
   local service_name="$1"
   if systemctl is-active --quiet "${service_name}" 2>/dev/null; then
     printf 'active\n'
-  elif systemctl list-unit-files 2>/dev/null | grep -q "^${service_name}\.service"; then
+  elif systemctl list-unit-files "${service_name}.service" --no-legend 2>/dev/null | grep -q .; then
     printf 'inactive\n'
   else
     printf 'not-installed\n'
