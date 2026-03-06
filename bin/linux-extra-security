@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# Licensed under the Apache License, Version 2.0.
+
+set -euo pipefail
+
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${BIN_DIR}/.." && pwd)"
+
+# shellcheck source=../lib/common.sh
+source "${REPO_ROOT}/lib/common.sh"
+# shellcheck source=../lib/dns.sh
+source "${REPO_ROOT}/lib/dns.sh"
+# shellcheck source=../lib/portmaster.sh
+source "${REPO_ROOT}/lib/portmaster.sh"
+# shellcheck source=../lib/ufw.sh
+source "${REPO_ROOT}/lib/ufw.sh"
+# shellcheck source=../lib/verify.sh
+source "${REPO_ROOT}/lib/verify.sh"
+# shellcheck source=../lib/rollback.sh
+source "${REPO_ROOT}/lib/rollback.sh"
+
+les_usage() {
+  cat <<'EOF'
+Usage: linux-extra-security <command>
+
+Commands:
+  install-tools         Install supported packages and prerequisites
+  configure-dns         Configure privacy DNS interactively
+  configure-portmaster  Configure Portmaster privacy presets
+  configure-ufw         Configure UFW presets
+  verify                Run non-destructive verification checks
+  rollback              Restore files from the latest recorded backup manifest
+  show-status           Show current DNS, Portmaster, and firewall status
+  sanity-check          Validate repository safety for public release
+  help                  Show this help
+EOF
+}
+
+les_interactive_menu() {
+  local action
+  action="$(les_choose_from_menu "Linux Extra Security" \
+    "install-tools" \
+    "configure-dns" \
+    "configure-portmaster" \
+    "configure-ufw" \
+    "verify" \
+    "rollback" \
+    "show-status" \
+    "sanity-check")"
+  printf '%s\n' "${action}"
+}
+
+les_install_tools() {
+  les_require_sudo
+  les_info "Installing recommended packages for Debian/Ubuntu/Zorin."
+  sudo apt-get update
+  sudo apt-get install -y curl ca-certificates jq dnsutils ufw
+}
+
+les_show_status() {
+  les_info "Current system status"
+  les_dns_show_status
+  les_portmaster_show_status
+  les_ufw_show_status
+}
+
+les_sanity_check() {
+  "${REPO_ROOT}/tests/smoke-test.sh"
+}
+
+main() {
+  local command="${1:-}"
+  if [[ -z "${command}" ]]; then
+    command="$(les_interactive_menu)"
+  fi
+
+  case "${command}" in
+    install-tools)
+      les_install_tools
+      ;;
+    configure-dns)
+      les_dns_configure_interactive
+      ;;
+    configure-portmaster)
+      les_portmaster_configure_interactive
+      ;;
+    configure-ufw)
+      les_ufw_configure_interactive
+      ;;
+    verify)
+      les_verify_all
+      ;;
+    rollback)
+      les_rollback_interactive
+      ;;
+    show-status)
+      les_show_status
+      ;;
+    sanity-check)
+      les_sanity_check
+      ;;
+    help|-h|--help)
+      les_usage
+      ;;
+    *)
+      les_usage
+      les_die "Unknown command: ${command}"
+      ;;
+  esac
+}
+
+main "$@"

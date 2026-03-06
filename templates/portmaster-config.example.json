@@ -1,0 +1,22 @@
+{
+  "dns": {
+    "nameservers": [
+      "tcp://127.0.0.1:5354",
+      "dns://127.0.0.1:5354"
+    ],
+    "useStaleCache": true
+  },
+  "filter": {
+    "preventBypassing": false,
+    "blockInbound": true,
+    "lists": [
+      "telemetry.txt",
+      "ads.txt",
+      "analytics.txt",
+      "malware.txt",
+      "phishing.txt",
+      "fraud.txt",
+      "tracking-other.txt"
+    ]
+  }
+}

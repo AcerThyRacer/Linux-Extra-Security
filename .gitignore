@@ -1,0 +1,6 @@
+.runtime/
+*.log
+*.tmp
+*.bak
+*.orig
+.DS_Store

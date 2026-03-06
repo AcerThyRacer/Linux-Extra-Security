@@ -1,0 +1,15 @@
+name: shell-toolkit-checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run smoke test
+        run: |
+          chmod +x bin/linux-extra-security tests/smoke-test.sh
+          ./tests/smoke-test.sh
