@@ -60,8 +60,11 @@ def service_state(name):
     active = subprocess.run(["systemctl", "is-active", "--quiet", name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if active.returncode == 0:
         return "active"
-    unit_files = run(["bash", "-lc", f"systemctl list-unit-files 2>/dev/null | awk '/^{name}[.]service/ {{print $1; exit}}'"])
-    return "inactive" if unit_files else "not-installed"
+    try:
+        unit_files = subprocess.check_output(["systemctl", "list-unit-files", f"{name}.service"], text=True, stderr=subprocess.DEVNULL)
+        return "inactive" if f"{name}.service" in unit_files else "not-installed"
+    except Exception:
+        return "not-installed"
 
 score = 0
 if service_state("systemd-resolved") == "active":
