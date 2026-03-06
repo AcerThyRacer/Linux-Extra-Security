@@ -54,7 +54,7 @@ les_services_apply() {
   local service_name
 
   while IFS= read -r service_name; do
-    if systemctl list-unit-files 2>/dev/null | grep -q "^${service_name}\.service"; then
+    if systemctl list-unit-files "${service_name}.service" --no-legend 2>/dev/null | grep -q .; then
       les_run sudo systemctl disable --now "${service_name}.service"
     fi
   done < <(les_services_profile_targets "${profile}")
