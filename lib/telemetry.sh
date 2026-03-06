@@ -15,6 +15,10 @@ les_telemetry_plan() {
   les_section "Telemetry Plan"
   les_status_line "Profile" "${level}"
   case "${level}" in
+    lite)
+      les_status_line "Services" "Disable whoopsie when present (leave geoclue)"
+      les_status_line "Package telemetry" "Turn off popularity-contest when present"
+      ;;
     balanced)
       les_status_line "Services" "Disable whoopsie and geoclue when present"
       les_status_line "Package telemetry" "Turn off popularity-contest when present"
@@ -69,20 +73,33 @@ les_telemetry_set_key_value() {
 }
 
 les_telemetry_apply() {
-  local level="${1:-balanced}"
+  local level="${1:-}"
+
+  if [[ -z "${level}" ]]; then
+    level="$(les_choose_from_menu "Select Telemetry Reduction Level:" \
+      "lite" \
+      "balanced" \
+      "strict")"
+  fi
+
+  les_telemetry_plan "${level}"
+  les_confirm "Apply telemetry reduction?" || return 0
+
   local manifest
-  local services=("whoopsie" "geoclue")
+  local services=("whoopsie")
 
   case "${level}" in
-    balanced|strict) ;;
+    lite) ;;
+    balanced)
+      services+=("geoclue")
+      ;;
+    strict)
+      services+=("geoclue" "avahi-daemon" "cups-browsed")
+      ;;
     *)
       les_die "Unknown telemetry level: ${level}"
       ;;
   esac
-
-  if [[ "${level}" == "strict" ]]; then
-    services+=("avahi-daemon" "cups-browsed")
-  fi
 
   manifest="$(les_new_manifest telemetry)"
   les_write_state_file "latest-telemetry-manifest" "${manifest}"

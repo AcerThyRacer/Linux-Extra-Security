@@ -32,8 +32,18 @@ EOF
 }
 
 les_browser_apply() {
-  local profile="${1:-privacy-baseline}"
+  local profile="${1:-}"
   local manifest
+
+  if [[ -z "${profile}" ]]; then
+    profile="$(les_choose_from_menu "Select Browser Profile:" \
+      "privacy-baseline" \
+      "maximum-privacy" \
+      "developer-safe")"
+  fi
+
+  les_browser_plan "${profile}"
+  les_confirm "Apply browser profile?" || return 0
 
   case "${profile}" in
     privacy-baseline|maximum-privacy|developer-safe) ;;

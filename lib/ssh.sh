@@ -13,12 +13,22 @@ les_ssh_plan() {
   les_section "SSH Hardening Plan"
   les_status_line "Mode" "${mode}"
   les_status_line "Drop-in" "${LES_SSH_DROPIN}"
-  les_status_line "Changes" "Disable root login, limit auth attempts, prefer protocol defaults"
+  if [[ "${mode}" == "lite" ]]; then
+    les_status_line "Changes" "Disable root login only"
+  else
+    les_status_line "Changes" "Disable root login, limit auth attempts, prefer protocol defaults"
+  fi
 }
 
 les_ssh_dropin_content() {
   local mode="${1:-safe}"
-  cat <<EOF
+  if [[ "${mode}" == "lite" ]]; then
+    cat <<EOF
+# Managed by Linux Extra Security.
+PermitRootLogin no
+EOF
+  else
+    cat <<EOF
 # Managed by Linux Extra Security.
 PermitRootLogin no
 MaxAuthTries 3
@@ -28,10 +38,22 @@ ClientAliveCountMax 2
 LoginGraceTime 30
 $(if [[ "${mode}" == "safe" ]]; then printf '%s\n' 'PasswordAuthentication yes'; else printf '%s\n' 'PasswordAuthentication no'; fi)
 EOF
+  fi
 }
 
 les_ssh_apply() {
-  local mode="${1:-safe}"
+  local mode="${1:-}"
+
+  if [[ -z "${mode}" ]]; then
+    mode="$(les_choose_from_menu "Select SSH Hardening Mode:" \
+      "lite" \
+      "safe" \
+      "strict")"
+  fi
+
+  les_ssh_plan "${mode}"
+  les_confirm "Apply SSH hardening?" || return 0
+
   local manifest
 
   manifest="$(les_new_manifest ssh)"

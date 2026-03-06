@@ -1,38 +1,32 @@
 # Linux Extra Security
 
-> **A beginner-friendly, interactive privacy and hardening toolkit for Debian, Ubuntu, and Zorin OS.**
-> Run one command, answer a few questions, and your system gets significantly more private and secure — no Linux expertise required.
+> **A super simple, interactive privacy and security tool for Linux.**
+> Run a command, answer easy questions, and make your system safer. No expert skills needed!
 
 ---
 
-## What does this do and why should I care?
+## What does this do?
 
-Out of the box, most Linux systems quietly leak data in ways most users never notice:
+Out of the box, Linux systems sometimes send out data or have settings that aren't the most secure. This tool fixes that! It can:
+- Encrypt your internet traffic (DNS) so your ISP can't see what websites you visit.
+- Stop your computer from sending unnecessary data and crash reports to companies.
+- Add a firewall to stop bad apps from connecting to the internet.
+- Disable unused, risky features (like USB storage, Core Dumps, or leaving your MAC address the same).
 
-- Your DNS queries (every website you visit by name) go to your ISP or router unencrypted
-- Background services phone home with telemetry and crash reports
-- Apps can bypass system-wide privacy settings using their own built-in DNS resolvers
-- Your firewall has no outbound rules, so any app can connect to anything at any time
-
-**This toolkit fixes all of that.** It sets up encrypted DNS, configures Portmaster (an app-level firewall), locks down outbound connections with UFW, silences telemetry, hardens SSH, and more — all through a simple interactive menu or a single profile command.
+### 🌟 New: Super Simple Interactive Menus and "Lite" Modes
+You can now decide exactly what happens!
+- **Interactive:** If you run a command like `./bin/linux-extra-security ssh apply`, it will ask you what you want to do. You are in control!
+- **"Lite" Mode:** Almost every feature now has a **"lite"** mode. Lite mode makes small, extremely safe changes that use almost zero system resources. It gives you basic security without ever breaking your computer.
 
 ---
 
 ## Table of Contents
 
 - [Requirements](#requirements)
-- [Quick Start](#quick-start) ← **Start here**
-- [How It Works](#how-it-works)
-- [Guided Workflows](#guided-workflows)
-- [Profiles](#profiles)
-- [All Commands](#all-commands)
+- [Quick Start](#quick-start)
+- [Interactive Menus](#interactive-menus)
 - [Individual Modules](#individual-modules)
-- [Safety and Rollback](#safety-and-rollback)
-- [Flags](#flags)
-- [Supported Systems](#supported-systems)
-- [Testing](#testing)
-- [Documentation](#documentation)
-- [License](#license)
+- [Safety and Undo](#safety-and-undo)
 
 ---
 
@@ -93,44 +87,30 @@ If you already know what you want, preview it first, then apply it:
 
 ---
 
-## How It Works
+## Interactive Menus
 
-The toolkit is built in layers. Each layer handles one concern, and they stack on top of each other:
+Whenever you run a command to apply a setting without telling it exactly what to do, it will give you choices.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  Your Guided Workflow or Profile                        │
-│  (e.g. "maximum-privacy" or "balanced-desktop")        │
-└──────────────┬──────────────────────────────────────────┘
-               │ orchestrates
-   ┌───────────▼────────────────────────────────────────┐
-   │  Modules (DNS · Portmaster · UFW · SSH · sysctl…) │
-   └───────────┬────────────────────────────────────────┘
-               │ write to
-   ┌───────────▼────────────────────────────────────────┐
-   │  System files (with backups recorded first)        │
-   └───────────┬────────────────────────────────────────┘
-               │ verified by
-   ┌───────────▼────────────────────────────────────────┐
-   │  Verification + Reporting                          │
-   └───────────┬────────────────────────────────────────┘
-               │ recoverable via
-   ┌───────────▼────────────────────────────────────────┐
-   │  Rollback Manifests (.runtime/state/)              │
-   └────────────────────────────────────────────────────┘
+For example:
+```bash
+./bin/linux-extra-security telemetry apply
 ```
 
-**Every apply step**:
-1. Shows a **plan** of what it will do
-2. Asks for **confirmation** before changing anything
-3. Saves a **backup** of any file it is about to overwrite
-4. Records a **manifest** so you can undo it later
+Will show you:
+```
+Select Telemetry Reduction Level:
+  1. lite
+  2. balanced
+  3. strict
+Select an option [1-3]:
+```
+Just type a number and hit enter! The script will explain what it's about to do and ask for a final confirmation before changing anything.
 
 ---
 
 ## Guided Workflows
 
-Guided workflows are the easiest way to get started. Pick one based on your situation:
+Guided workflows are the easiest way to do a bunch of things at once. Pick one:
 
 ### `privacy-baseline`
 > **Best for:** Most desktop users who want meaningful privacy without breaking things
@@ -177,15 +157,7 @@ Guided workflows are the easiest way to get started. Pick one based on your situ
 ---
 
 ### `maximum-privacy`
-> **Best for:** High-friction, maximum blocking. Expect some things to break initially — that is normal. Use the rollback tools to tune.
-
-- DNS: NextDNS local-forwarder (prompts for your profile ID)
-- Portmaster: strict preset
-- UFW: locked-down (only HTTPS and NTP out)
-- Telemetry: strict (disables crash reporters, location, Bluetooth manager, CUPS)
-- AppArmor: strict enforce mode
-- Sysctl: hardened kernel settings
-- Journald: private retention mode
+> **Best for:** Maximum blocking. Warning: This might break some internet things until you adjust it!
 
 ```bash
 ./bin/linux-extra-security guided maximum-privacy
@@ -193,56 +165,51 @@ Guided workflows are the easiest way to get started. Pick one based on your situ
 
 ---
 
-### `rollback`
-> **Best for:** Something broke and you want to undo a specific change
+## Individual Modules
 
+You can apply security settings to just one part of your system. Below are some useful ones. Remember, running `apply` with no extra text will show an interactive menu!
+
+### 🔌 **NEW:** USB Storage Restriction
+Stops random USB drives from reading/writing files on your computer.
 ```bash
-./bin/linux-extra-security guided rollback
-# or more directly:
-./bin/linux-extra-security rollback list
-./bin/linux-extra-security rollback module ufw
+./bin/linux-extra-security usb apply
+# Options: 'lite' (logs it), 'strict' (blocks it totally)
+```
+
+### 📡 **NEW:** MAC Address Randomization
+Changes your Wi-Fi hardware address to stop networks from tracking you.
+```bash
+./bin/linux-extra-security mac apply
+# Options: 'lite' (changes per network), 'strict' (changes every time)
+```
+
+### 🛑 **NEW:** Core Dump Restriction
+Stops Linux from saving its memory to your hard drive when a program crashes (which can leak passwords).
+```bash
+./bin/linux-extra-security coredump apply
+# Options: 'lite' (restricts access), 'strict' (turns off entirely)
+```
+
+### Telemetry (Stop sending data)
+```bash
+./bin/linux-extra-security telemetry apply
+```
+
+### SSH (Secure remote logins)
+```bash
+./bin/linux-extra-security ssh apply
+```
+
+### AppArmor (Isolate apps)
+```bash
+./bin/linux-extra-security apparmor apply
 ```
 
 ---
 
-## Profiles
+## Safety and Undo
 
-Profiles are reusable `.env` files in the `profiles/` folder. They declare all settings for every module at once, so you can apply the same configuration repeatedly or share it with others.
-
-| Profile | DNS | Portmaster | UFW | Best for |
-|---|---|---|---|---|
-| `balanced-desktop` | Quad9 DoT | usable | desktop-safe | General desktop |
-| `workstation-safe` | AdGuard DoT | usable | balanced | Developer machine |
-| `vpn-friendly` | NextDNS | aggressive | vpn-friendly | VPN users |
-| `privacy-max` | NextDNS | strict | locked-down | Maximum privacy |
-
-### Preview a profile (no changes made)
-
-```bash
-./bin/linux-extra-security profile plan privacy-max
-```
-
-### Apply a profile
-
-```bash
-./bin/linux-extra-security profile apply privacy-max
-```
-
-### Create your own profile
-
-Copy any `.env` file from `profiles/` and edit the values:
-
-```bash
-cp profiles/balanced-desktop.env profiles/my-custom.env
-# edit profiles/my-custom.env
-./bin/linux-extra-security profile apply my-custom
-```
-
----
-
-## All Commands
-
-### Global flags (work with any command)
+**Backups are automatic.** Before this tool changes any file, it saves the original.
 
 | Flag | What it does |
 |---|---|
@@ -440,30 +407,19 @@ Presets: `usable` (blocks ads/trackers/malware), `aggressive` (+ fraud/tracking)
 ./bin/linux-extra-security install-tools all             # Everything above
 ```
 
----
-
-## Safety and Rollback
-
-### Nothing is irreversible
-
-Every file the toolkit touches is backed up first. The backup path looks like:
-
-```
-.runtime/
-  backups/
-    20260306-143022-etc_ufw           ← backup of /etc/ufw taken at 14:30:22
-    20260306-143022-etc_nextdns.conf
-  state/
-    ufw-20260306-143022.manifest      ← list of what was backed up
-    dns-20260306-143022.manifest
-  reports/
-    verification-20260306-143022.txt
-    verification-20260306-143022.json
-```
-
-This folder is in `.gitignore` and never uploaded anywhere.
-
 ### Dry-run before you commit
+
+Any command can be previewed with `--dry-run`:
+
+```bash
+./bin/linux-extra-security --dry-run ssh apply strict
+```
+This prints what would happen without touching anything.
+
+### How to undo a change
+
+1. Open the interactive rollback menu: `./bin/linux-extra-security rollback interactive`
+2. Select the module you want to restore to its original state. That's it!
 
 Any command can be previewed with `--dry-run`:
 

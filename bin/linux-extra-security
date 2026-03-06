@@ -38,6 +38,12 @@ source "${REPO_ROOT}/lib/journald.sh"
 source "${REPO_ROOT}/lib/sysctl.sh"
 # shellcheck source=../lib/browser.sh
 source "${REPO_ROOT}/lib/browser.sh"
+# shellcheck source=../lib/usb.sh
+source "${REPO_ROOT}/lib/usb.sh"
+# shellcheck source=../lib/mac.sh
+source "${REPO_ROOT}/lib/mac.sh"
+# shellcheck source=../lib/coredump.sh
+source "${REPO_ROOT}/lib/coredump.sh"
 # shellcheck source=../lib/verify.sh
 source "${REPO_ROOT}/lib/verify.sh"
 # shellcheck source=../lib/rollback.sh
@@ -63,6 +69,9 @@ Commands:
   journald <action>         Journald privacy plan/apply/status
   sysctl <action>           Sysctl hardening plan/apply/status
   browser <action>          Browser alignment plan/apply/status
+  usb <action>              USB storage plan/apply/status
+  mac <action>              MAC randomization plan/apply/status
+  coredump <action>         Core dump plan/apply/status
   audit                     Show system audit and posture report
   verify [all|json]         Run verification and write reports
   rollback <action>         List or restore rollback points
@@ -209,6 +218,9 @@ les_show_status() {
   les_journald_status
   les_sysctl_status
   les_browser_status
+  les_usb_status
+  les_mac_status
+  les_coredump_status
 }
 
 les_sanity_check() {
@@ -343,9 +355,9 @@ main() {
       ;;
     telemetry)
       subcommand="${2:-status}"
-      value="${3:-balanced}"
+      value="${3:-}"
       case "${subcommand}" in
-        plan) les_telemetry_plan "${value}" ;;
+        plan) les_telemetry_plan "${value:-balanced}" ;;
         apply) les_telemetry_apply "${value}" ;;
         status) les_telemetry_status ;;
         *) les_die "Unknown telemetry action: ${subcommand}" ;;
@@ -353,9 +365,9 @@ main() {
       ;;
     ssh)
       subcommand="${2:-status}"
-      value="${3:-safe}"
+      value="${3:-}"
       case "${subcommand}" in
-        plan) les_ssh_plan "${value}" ;;
+        plan) les_ssh_plan "${value:-safe}" ;;
         apply) les_ssh_apply "${value}" ;;
         status) les_ssh_status ;;
         *) les_die "Unknown ssh action: ${subcommand}" ;;
@@ -363,9 +375,9 @@ main() {
       ;;
     updates)
       subcommand="${2:-status}"
-      value="${3:-security-auto}"
+      value="${3:-}"
       case "${subcommand}" in
-        plan) les_updates_plan "${value}" ;;
+        plan) les_updates_plan "${value:-security-auto}" ;;
         apply) les_updates_apply "${value}" ;;
         status) les_updates_status ;;
         *) les_die "Unknown updates action: ${subcommand}" ;;
@@ -373,9 +385,9 @@ main() {
       ;;
     apparmor)
       subcommand="${2:-status}"
-      value="${3:-on}"
+      value="${3:-}"
       case "${subcommand}" in
-        plan) les_apparmor_plan "${value}" ;;
+        plan) les_apparmor_plan "${value:-on}" ;;
         apply) les_apparmor_apply "${value}" ;;
         status) les_apparmor_status ;;
         *) les_die "Unknown apparmor action: ${subcommand}" ;;
@@ -383,9 +395,9 @@ main() {
       ;;
     fail2ban)
       subcommand="${2:-status}"
-      value="${3:-optional}"
+      value="${3:-}"
       case "${subcommand}" in
-        plan) les_fail2ban_plan "${value}" ;;
+        plan) les_fail2ban_plan "${value:-optional}" ;;
         apply) les_fail2ban_apply "${value}" ;;
         status) les_fail2ban_status ;;
         *) les_die "Unknown fail2ban action: ${subcommand}" ;;
@@ -393,9 +405,9 @@ main() {
       ;;
     services)
       subcommand="${2:-status}"
-      value="${3:-balanced}"
+      value="${3:-}"
       case "${subcommand}" in
-        plan) les_services_plan "${value}" ;;
+        plan) les_services_plan "${value:-balanced}" ;;
         apply) les_services_apply "${value}" ;;
         status) les_services_status ;;
         *) les_die "Unknown services action: ${subcommand}" ;;
@@ -403,9 +415,9 @@ main() {
       ;;
     journald)
       subcommand="${2:-status}"
-      value="${3:-balanced}"
+      value="${3:-}"
       case "${subcommand}" in
-        plan) les_journald_plan "${value}" ;;
+        plan) les_journald_plan "${value:-balanced}" ;;
         apply) les_journald_apply "${value}" ;;
         status) les_journald_status ;;
         *) les_die "Unknown journald action: ${subcommand}" ;;
@@ -413,9 +425,9 @@ main() {
       ;;
     sysctl)
       subcommand="${2:-status}"
-      value="${3:-desktop-safe}"
+      value="${3:-}"
       case "${subcommand}" in
-        plan) les_sysctl_plan "${value}" ;;
+        plan) les_sysctl_plan "${value:-desktop-safe}" ;;
         apply) les_sysctl_apply "${value}" ;;
         status) les_sysctl_status ;;
         *) les_die "Unknown sysctl action: ${subcommand}" ;;
@@ -423,12 +435,42 @@ main() {
       ;;
     browser)
       subcommand="${2:-status}"
-      value="${3:-privacy-baseline}"
+      value="${3:-}"
       case "${subcommand}" in
-        plan) les_browser_plan "${value}" ;;
+        plan) les_browser_plan "${value:-privacy-baseline}" ;;
         apply) les_browser_apply "${value}" ;;
         status) les_browser_status ;;
         *) les_die "Unknown browser action: ${subcommand}" ;;
+      esac
+      ;;
+    usb)
+      subcommand="${2:-status}"
+      value="${3:-}"
+      case "${subcommand}" in
+        plan) les_usb_plan "${value:-lite}" ;;
+        apply) les_usb_apply "${value}" ;;
+        status) les_usb_status ;;
+        *) les_die "Unknown usb action: ${subcommand}" ;;
+      esac
+      ;;
+    mac)
+      subcommand="${2:-status}"
+      value="${3:-}"
+      case "${subcommand}" in
+        plan) les_mac_plan "${value:-lite}" ;;
+        apply) les_mac_apply "${value}" ;;
+        status) les_mac_status ;;
+        *) les_die "Unknown mac action: ${subcommand}" ;;
+      esac
+      ;;
+    coredump)
+      subcommand="${2:-status}"
+      value="${3:-}"
+      case "${subcommand}" in
+        plan) les_coredump_plan "${value:-lite}" ;;
+        apply) les_coredump_apply "${value}" ;;
+        status) les_coredump_status ;;
+        *) les_die "Unknown coredump action: ${subcommand}" ;;
       esac
       ;;
     audit)

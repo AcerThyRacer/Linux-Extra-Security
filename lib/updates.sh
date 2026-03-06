@@ -15,15 +15,34 @@ les_updates_plan() {
   local mode="${1:-security-auto}"
   les_section "Updates Plan"
   les_status_line "Mode" "${mode}"
-  les_status_line "Auto upgrades" "Enable unattended security updates"
-  les_status_line "Artifacts" "${LES_AUTO_UPGRADES_FILE}, ${LES_UNATTENDED_FILE}"
+  if [[ "${mode}" == "lite" ]]; then
+    les_status_line "Auto upgrades" "Keep existing configuration (No changes)"
+    les_status_line "Artifacts" "None"
+  else
+    les_status_line "Auto upgrades" "Enable unattended security updates"
+    les_status_line "Artifacts" "${LES_AUTO_UPGRADES_FILE}, ${LES_UNATTENDED_FILE}"
+  fi
 }
 
 les_updates_apply() {
-  local mode="${1:-security-auto}"
+  local mode="${1:-}"
   local manifest
   local auto_content
   local unattended_content
+
+  if [[ -z "${mode}" ]]; then
+    mode="$(les_choose_from_menu "Select Updates Mode:" \
+      "lite" \
+      "security-auto")"
+  fi
+
+  les_updates_plan "${mode}"
+  les_confirm "Apply updates mode?" || return 0
+
+  if [[ "${mode}" == "lite" ]]; then
+    les_info "Skipping updates configuration (lite mode)."
+    return 0
+  fi
 
   [[ "${mode}" == "security-auto" ]] || les_die "Unsupported update mode: ${mode}"
   les_pkg_install_group host-hardening

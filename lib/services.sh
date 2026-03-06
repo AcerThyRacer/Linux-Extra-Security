@@ -8,6 +8,9 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 les_services_profile_targets() {
   case "${1:-balanced}" in
+    lite)
+      printf '%s\n' cups-browsed
+      ;;
     balanced)
       printf '%s\n' avahi-daemon cups-browsed
       ;;
@@ -34,7 +37,20 @@ les_services_plan() {
 }
 
 les_services_apply() {
-  local profile="${1:-balanced}"
+  local profile="${1:-}"
+
+  if [[ -z "${profile}" ]]; then
+    profile="$(les_choose_from_menu "Select Services Profile:" \
+      "lite" \
+      "balanced" \
+      "vpn-friendly" \
+      "developer" \
+      "privacy-max")"
+  fi
+
+  les_services_plan "${profile}"
+  les_confirm "Apply services profile?" || return 0
+
   local service_name
 
   while IFS= read -r service_name; do

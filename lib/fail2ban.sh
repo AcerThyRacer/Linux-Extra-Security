@@ -18,9 +18,19 @@ les_fail2ban_plan() {
 }
 
 les_fail2ban_apply() {
-  local mode="${1:-optional}"
+  local mode="${1:-}"
   local manifest
   local content
+
+  if [[ -z "${mode}" ]]; then
+    mode="$(les_choose_from_menu "Select Fail2ban Mode:" \
+      "off" \
+      "optional" \
+      "sshd")"
+  fi
+
+  les_fail2ban_plan "${mode}"
+  les_confirm "Apply fail2ban mode?" || return 0
 
   case "${mode}" in
     off)
