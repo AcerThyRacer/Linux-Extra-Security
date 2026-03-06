@@ -1,0 +1,30 @@
+{
+  "name": "gui",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --linux AppImage"
+  },
+  "build": {
+    "appId": "com.linux.extrsecurity",
+    "productName": "Linux Extra Security",
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^40.8.0",
+    "electron-builder": "^26.8.1",
+    "sudo-prompt": "^9.2.1"
+  }
+}
